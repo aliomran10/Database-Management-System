@@ -21,19 +21,6 @@ It allows users to create, manage, and query databases and tables using files an
 - Delete From Table
 - Update Table
 
-## Project Structure
-
-bash_dbms/
-├── main.sh           # Entry point of the application
-├── config.sh         # Shared configuration variables
-├── utils.sh          # Helper functions (validation)
-├── database_ops.sh   # Database-level operations
-├── table_ops.sh      # Table-level operations (CRUD)
-├── table_menu.sh     # Table menu CLI
-├── main_menu.sh      # Main menu CLI
-├── databases/        # Root folder for all databases
-└── README.md         # Project documentation
-
 ## Supported Datatypes
 - int
 - string
