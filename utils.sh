@@ -102,3 +102,27 @@ function validate_database_name() {
 
     return 0
 }
+
+# Check if table exists
+function table_exists() {
+    local table=$1
+    
+    if [ ! -f "$DB_PATH/$table.meta" ] || [ ! -f "$DB_PATH/$table.data" ]; then
+        echo "Error: Table '$table' does not exist"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Check if database exists
+function database_exists() {
+    local db=$1
+
+    if [ ! -d "$DB_ROOT/$db" ]; then
+        echo "Error: Database '$db' does not exist"
+        return 1
+    fi
+
+    return 0
+}

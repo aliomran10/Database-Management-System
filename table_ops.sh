@@ -61,21 +61,54 @@ function create_table() {
 }
 
 function list_tables() {
-ls $DB_PATH | grep ".data" | cut -d. -f1
+    if [ ! -d "$DB_PATH" ]; then
+        echo "Error: Database path does not exist"
+        return
+    fi
+    
+    local tables=$(ls "$DB_PATH" 2>/dev/null | grep ".data" | cut -d. -f1)
+    
+    if [ -z "$tables" ]; then
+        echo "No tables found"
+    else
+        echo "Tables:"
+        echo "$tables"
+    fi
 }
 
 function drop_table() {
-read -p "Enter table name: " table
-rm -f $DB_PATH/$table.data $DB_PATH/$table.meta
-echo "Table deleted"
+    read -p "Enter table name: " table
+    
+    # Validate table name
+    if ! validate_table_name "$table"; then
+        return
+    fi
+    
+    # Check if table exists
+    if ! table_exists "$table"; then
+        return
+    fi
+    
+    read -p "Are you sure you want to drop table '$table'? (y/n): " confirm
+    if [ "$confirm" != "y" ]; then
+        echo "Drop cancelled"
+        return
+    fi
+    
+    rm -f "$DB_PATH/$table.data" "$DB_PATH/$table.meta"
+    echo "Table deleted"
 }
 
 function insert_table() {
     read -p "Enter table name: " table
 
+    # Validate table name
+    if ! validate_table_name "$table"; then
+        return
+    fi
+    
     # Check if table exists
-    if [ ! -f "$DB_PATH/$table.meta" ]; then
-        echo "Table does not exist"
+    if ! table_exists "$table"; then
         return
     fi
 
@@ -146,57 +179,94 @@ function insert_table() {
 
 function select_table() {
     read -p "Enter table name: " table
-
-    # Check if table exists
-    if [ ! -f "$DB_PATH/$table.meta" ]; then
-        echo "Table does not exist"
+    
+    # Validate table name
+    if ! validate_table_name "$table"; then
         return
     fi
-
+    
+    # Check if table exists
+    if ! table_exists "$table"; then
+        return
+    fi
+    
     # Read metadata
     declare -a col_names
-    declare -a col_widths
+    declare -a col_types
+    declare -a col_selected
     col_count=0
-
+    
     while IFS=: read -r cname dtype pk; do
         col_names[$col_count]=$cname
-        # Start with column name length as minimum width
-        col_widths[$col_count]=${#cname}
+        col_types[$col_count]=$dtype
+        col_selected[$col_count]=0
         ((col_count++))
     done < "$DB_PATH/$table.meta"
-
+    
+    # Ask user which columns to select
+    echo ""
+    echo "Select columns to display:"
+    selected_count=0
+    for ((i=0; i<col_count; i++)); do
+        read -p "Select ${col_names[$i]}? (y/n): " choice
+        if [ "$choice" = "y" ]; then
+            col_selected[$i]=1
+            ((selected_count++))
+        fi
+    done
+    
+    # Check if at least one column is selected
+    if [ $selected_count -eq 0 ]; then
+        echo "Error: No columns selected"
+        return
+    fi
+    
+    # Build array of selected column indices and widths
+    declare -a selected_indices
+    declare -a selected_widths
+    idx=0
+    for ((i=0; i<col_count; i++)); do
+        if [ ${col_selected[$i]} -eq 1 ]; then
+            selected_indices[$idx]=$i
+            selected_widths[$idx]=${#col_names[$i]}
+            ((idx++))
+        fi
+    done
+    
     # Read all data to calculate column widths
     declare -a all_records
     record_count=0
-
+    
     if [ -f "$DB_PATH/$table.data" ]; then
         while IFS= read -r line; do
             all_records[$record_count]=$line
             IFS=: read -ra fields <<< "$line"
-            for ((i=0; i<col_count; i++)); do
-                field_len=${#fields[$i]}
-                if [ $field_len -gt ${col_widths[$i]} ]; then
-                    col_widths[$i]=$field_len
+            for ((i=0; i<selected_count; i++)); do
+                col_idx=${selected_indices[$i]}
+                field_len=${#fields[$col_idx]}
+                if [ $field_len -gt ${selected_widths[$i]} ]; then
+                    selected_widths[$i]=$field_len
                 fi
             done
             ((record_count++))
         done < "$DB_PATH/$table.data"
     fi
-
+    
     # Print header
     echo ""
-    for ((i=0; i<col_count; i++)); do
-        printf "| %-${col_widths[$i]}s " "${col_names[$i]}"
+    for ((i=0; i<selected_count; i++)); do
+        col_idx=${selected_indices[$i]}
+        printf "| %-${selected_widths[$i]}s " "${col_names[$col_idx]}"
     done
     echo "|"
-
+    
     # Print separator line
-    for ((i=0; i<col_count; i++)); do
+    for ((i=0; i<selected_count; i++)); do
         printf "|"
-        printf '%*s' $((col_widths[$i] + 2)) '' | tr ' ' '-'
+        printf '%*s' $((selected_widths[$i] + 2)) '' | tr ' ' '-'
     done
     echo "|"
-
+    
     # Print data rows
     if [ $record_count -eq 0 ]; then
         echo "| No records found"
@@ -204,8 +274,9 @@ function select_table() {
     else
         for ((r=0; r<record_count; r++)); do
             IFS=: read -ra fields <<< "${all_records[$r]}"
-            for ((i=0; i<col_count; i++)); do
-                printf "| %-${col_widths[$i]}s " "${fields[$i]}"
+            for ((i=0; i<selected_count; i++)); do
+                col_idx=${selected_indices[$i]}
+                printf "| %-${selected_widths[$i]}s " "${fields[$col_idx]}"
             done
             echo "|"
         done
