@@ -377,7 +377,6 @@ function delete_table() {
         IFS=: read -ra fields <<< "$line"
         if [ "${fields[$col_idx]}" = "$search_value" ]; then
             matching_records[$match_count]="$line"
-            matching_lines[$match_count]="$line"
             ((match_count++))
         fi
     done < "$DB_PATH/$table.data"
