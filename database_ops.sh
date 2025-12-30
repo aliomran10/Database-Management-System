@@ -1,12 +1,16 @@
 function create_database() {
-read -p "Enter database name: " db
-if [ -d $DB_ROOT/$db ]
-then
-echo "Database already exists"
-else
-mkdir -p $DB_ROOT/$db
-echo "Database created"
-fi
+    read -p "Enter database name: " db
+    
+    if ! validate_database_name "$db"; then
+        return
+    fi
+    
+    if [ -d "$DB_ROOT/$db" ]; then
+        echo "Database already exists"
+    else
+        mkdir -p "$DB_ROOT/$db"
+        echo "Database created"
+    fi
 }
 
 function list_databases() {

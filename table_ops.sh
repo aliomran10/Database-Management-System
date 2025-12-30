@@ -1,39 +1,63 @@
 function create_table() {
-read -p "Enter table name: " table
-if [ -f $DB_PATH/$table.data ]
-then
-echo "Table exists"
-return
-fi
-
-read -p "Number of columns: " cols
-> $DB_PATH/$table.meta
-
-pk_set=0
-
-for ((i=1;i<=cols;i++))
-do
-read -p "Column name: " cname
-read -p "Datatype (int|string): " dtype
-read -p "Primary key? (y/n): " pk
-
-if [ "$pk" = "y" ] && [ $pk_set -eq 1 ]
-then
-echo "Primary key already set"
-pk=""
-fi
-
-if [ "$pk" = "y" ]
-then
-echo "$cname:$dtype:PK" >> $DB_PATH/$table.meta
-pk_set=1
-else
-echo "$cname:$dtype:" >> $DB_PATH/$table.meta
-fi
-done
-
-touch $DB_PATH/$table.data
-echo "Table created"
+    read -p "Enter table name: " table
+    
+    # Validate table name
+    if ! validate_table_name "$table"; then
+        return
+    fi
+    
+    if [ -f "$DB_PATH/$table.data" ]; then
+        echo "Table exists"
+        return
+    fi
+    
+    read -p "Number of columns: " cols
+    
+    # Validate number of columns
+    if ! [[ "$cols" =~ ^[0-9]+$ ]] || [ "$cols" -lt 1 ]; then
+        echo "Error: Number of columns must be a positive integer"
+        return
+    fi
+    
+    > "$DB_PATH/$table.meta"
+    pk_set=0
+    
+    for ((i=1; i<=cols; i++)); do
+        read -p "Column name: " cname
+        
+        # Validate column name (similar rules as table name)
+        if ! validate_table_name "$cname"; then
+            echo "Error: Invalid column name"
+            rm -f "$DB_PATH/$table.meta"
+            return
+        fi
+        
+        read -p "Datatype (int|string): " dtype
+        
+        # Validate datatype
+        if [ "$dtype" != "int" ] && [ "$dtype" != "string" ]; then
+            echo "Error: Datatype must be 'int' or 'string'"
+            rm -f "$DB_PATH/$table.meta"
+            return
+        fi
+        
+        read -p "Primary key? (y/n): " pk
+        
+        if [ "$pk" = "y" ] && [ $pk_set -eq 1 ]; then
+            echo "Primary key already set"
+            pk=""
+        fi
+        
+        if [ "$pk" = "y" ]; then
+            echo "$cname:$dtype:PK" >> "$DB_PATH/$table.meta"
+            pk_set=1
+        else
+            echo "$cname:$dtype:" >> "$DB_PATH/$table.meta"
+        fi
+    done
+    
+    touch "$DB_PATH/$table.data"
+    echo "Table created"
 }
 
 function list_tables() {
