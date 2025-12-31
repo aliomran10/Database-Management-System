@@ -4,45 +4,34 @@ dtype="$2"
 
 if [ "$dtype" = "int" ]; then
 if [[ "$value" =~ ^[0-9]+$ ]]; then
-return 0   # valid
+return 0
 else
-return 1   # invalid
+return 1
 fi
 else
-return 0   # accept any non-int value
+return 0
 fi
 }
 
-# Validate table name
-# Returns 0 if valid, 1 if invalid
 function validate_table_name() {
     local table_name=$1
 
-    # Check if table name is empty
     if [ -z "$table_name" ]; then
         echo "Error: Table name cannot be empty"
         return 1
     fi
 
-    # Check if table name starts with a number
     if [[ "$table_name" =~ ^[0-9] ]]; then
         echo "Error: Table name cannot start with a number"
         return 1
     fi
 
-    # Check if table name contains only valid characters (alphanumeric and underscore)
     if ! [[ "$table_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
         echo "Error: Table name can only contain letters, numbers, and underscores"
         return 1
     fi
 
-    # Check if table name is too long (optional - set your own limit)
-    if [ ${#table_name} -gt 64 ]; then
-        echo "Error: Table name too long (max 64 characters)"
-        return 1
-    fi
-
-    # Check for reserved words (optional - add more as needed)
+    # Check for reserved words
     local reserved_words=("select" "insert" "update" "delete" "drop" "create" "table" "database")
     local lower_table_name=$(echo "$table_name" | tr '[:upper:]' '[:lower:]')
     for word in "${reserved_words[@]}"; do
@@ -55,36 +44,25 @@ function validate_table_name() {
     return 0
 }
 
-# Validate database name
-# Returns 0 if valid, 1 if invalid
 function validate_database_name() {
     local db_name=$1
 
-    # Check if database name is empty
     if [ -z "$db_name" ]; then
         echo "Error: Database name cannot be empty"
         return 1
     fi
 
-    # Check if database name starts with a number
     if [[ "$db_name" =~ ^[0-9] ]]; then
         echo "Error: Database name cannot start with a number"
         return 1
     fi
 
-    # Check if database name contains only valid characters (alphanumeric and underscore)
     if ! [[ "$db_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
         echo "Error: Database name can only contain letters, numbers, and underscores"
         return 1
     fi
 
-    # Check if database name is too long (optional - set your own limit)
-    if [ ${#db_name} -gt 64 ]; then
-        echo "Error: Database name too long (max 64 characters)"
-        return 1
-    fi
-
-    # Check for reserved words (optional - add more as needed)
+    # Check for reserved words
     local reserved_words=("select" "insert" "update" "delete" "drop" "create" "table" "database" "system" "root" "admin")
     local lower_db_name=$(echo "$db_name" | tr '[:upper:]' '[:lower:]')
     for word in "${reserved_words[@]}"; do
@@ -103,7 +81,6 @@ function validate_database_name() {
     return 0
 }
 
-# Check if table exists
 function table_exists() {
     local table=$1
     
@@ -115,7 +92,6 @@ function table_exists() {
     return 0
 }
 
-# Check if database exists
 function database_exists() {
     local db=$1
 

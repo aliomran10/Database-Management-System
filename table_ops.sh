@@ -1,7 +1,6 @@
 function create_table() {
     read -p "Enter table name: " table
     
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
@@ -13,7 +12,6 @@ function create_table() {
     
     read -p "Number of columns: " cols
     
-    # Validate number of columns
     if ! [[ "$cols" =~ ^[0-9]+$ ]] || [ "$cols" -lt 1 ]; then
         echo "Error: Number of columns must be a positive integer"
         return
@@ -25,7 +23,6 @@ function create_table() {
     for ((i=1; i<=cols; i++)); do
         read -p "Column name: " cname
         
-        # Validate column name (similar rules as table name)
         if ! validate_table_name "$cname"; then
             echo "Error: Invalid column name"
             rm -f "$DB_PATH/$table.meta"
@@ -34,7 +31,6 @@ function create_table() {
         
         read -p "Datatype (int|string): " dtype
         
-        # Validate datatype
         if [ "$dtype" != "int" ] && [ "$dtype" != "string" ]; then
             echo "Error: Datatype must be 'int' or 'string'"
             rm -f "$DB_PATH/$table.meta"
@@ -79,12 +75,10 @@ function list_tables() {
 function drop_table() {
     read -p "Enter table name: " table
     
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
     
-    # Check if table exists
     if ! table_exists "$table"; then
         return
     fi
@@ -102,17 +96,14 @@ function drop_table() {
 function insert_table() {
     read -p "Enter table name: " table
 
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
     
-    # Check if table exists
     if ! table_exists "$table"; then
         return
     fi
 
-    # Read metadata
     declare -a col_names
     declare -a col_types
     declare -a col_pk
@@ -129,25 +120,15 @@ function insert_table() {
         ((col_count++))
     done < "$DB_PATH/$table.meta"
 
-    # Collect values for each column
     declare -a values
     for ((i=0; i<col_count; i++)); do
         read -p "Enter ${col_names[$i]} (${col_types[$i]}): " value
-
-        # Validate datatype
-        # if [ "${col_types[$i]}" = "int" ]; then
-        #    if ! [[ "$value" =~ ^-?[0-9]+$ ]]; then
-        #        echo "Error: ${col_names[$i]} must be an integer"
-        #        return
-        #    fi
-        #fi
 
 	if ! validate_datatype "$value" "${col_types[$i]}"; then
 	    echo "Error: ${col_names[$i]} must be an integer"
             return
         fi
 
-        # Check for empty value
         if [ -z "$value" ]; then
             echo "Error: ${col_names[$i]} cannot be empty"
             return
@@ -156,7 +137,7 @@ function insert_table() {
         values[$i]=$value
     done
 
-    # Check primary key uniqueness
+    # Check primary key didn't exist before
     if [ $pk_col -ge 0 ]; then
         pk_value="${values[$pk_col]}"
         if [ -f "$DB_PATH/$table.data" ]; then
@@ -170,7 +151,6 @@ function insert_table() {
         fi
     fi
 
-    # Insert record (colon-separated)
     record=$(IFS=:; echo "${values[*]}")
     echo "$record" >> "$DB_PATH/$table.data"
 
@@ -180,17 +160,14 @@ function insert_table() {
 function select_table() {
     read -p "Enter table name: " table
     
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
     
-    # Check if table exists
     if ! table_exists "$table"; then
         return
     fi
     
-    # Read metadata
     declare -a col_names
     declare -a col_types
     declare -a col_selected
@@ -203,7 +180,6 @@ function select_table() {
         ((col_count++))
     done < "$DB_PATH/$table.meta"
     
-    # Ask user which columns to select
     echo ""
     echo "Select columns to display:"
     selected_count=0
@@ -215,13 +191,11 @@ function select_table() {
         fi
     done
     
-    # Check if at least one column is selected
     if [ $selected_count -eq 0 ]; then
         echo "Error: No columns selected"
         return
     fi
     
-    # Build array of selected column indices and widths
     declare -a selected_indices
     declare -a selected_widths
     idx=0
@@ -233,7 +207,6 @@ function select_table() {
         fi
     done
     
-    # Read all data to calculate column widths
     declare -a all_records
     record_count=0
     
@@ -252,7 +225,6 @@ function select_table() {
         done < "$DB_PATH/$table.data"
     fi
     
-    # Print header
     echo ""
     for ((i=0; i<selected_count; i++)); do
         col_idx=${selected_indices[$i]}
@@ -260,14 +232,12 @@ function select_table() {
     done
     echo "|"
     
-    # Print separator line
     for ((i=0; i<selected_count; i++)); do
         printf "|"
         printf '%*s' $((selected_widths[$i] + 2)) '' | tr ' ' '-'
     done
     echo "|"
     
-    # Print data rows
     if [ $record_count -eq 0 ]; then
         echo "| No records found"
         echo ""
@@ -288,23 +258,19 @@ function select_table() {
 function delete_table() {
     read -p "Enter table name: " table
     
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
     
-    # Check if table exists
     if ! table_exists "$table"; then
         return
     fi
     
-    # Check if data file exists
     if [ ! -f "$DB_PATH/$table.data" ]; then
         echo "Table has no records"
         return
     fi
     
-    # Read metadata
     declare -a col_names
     declare -a col_types
     declare -a col_pk
@@ -317,14 +283,12 @@ function delete_table() {
         ((col_count++))
     done < "$DB_PATH/$table.meta"
     
-    # Count existing records
     record_count=$(wc -l < "$DB_PATH/$table.data")
     if [ $record_count -eq 0 ]; then
         echo "Table has no records"
         return
     fi
     
-    # Option to delete all records
     read -p "Delete all records? (y/n): " delete_all
     if [ "$delete_all" = "y" ]; then
         read -p "Are you sure you want to delete all $record_count record(s)? (y/n): " confirm
@@ -337,7 +301,6 @@ function delete_table() {
         return
     fi
     
-    # Display available columns
     echo ""
     echo "Available columns:"
     for ((i=0; i<col_count; i++)); do
@@ -345,30 +308,24 @@ function delete_table() {
     done
     echo ""
     
-    # Ask user to select column for deletion condition
     read -p "Select column number to delete by: " col_choice
     
-    # Validate column choice
     if ! [[ "$col_choice" =~ ^[0-9]+$ ]] || [ $col_choice -lt 1 ] || [ $col_choice -gt $col_count ]; then
         echo "Error: Invalid column number"
         return
     fi
     
-    # Adjust to zero-based index
     col_idx=$((col_choice - 1))
     selected_col="${col_names[$col_idx]}"
     selected_type="${col_types[$col_idx]}"
     
-    # Ask for value to match
     read -p "Enter $selected_col value to delete: " search_value
     
-    # Validate datatype
     if ! validate_datatype "$search_value" "$selected_type"; then
         echo "Error: $selected_col must be an integer"
         return
     fi
     
-    # Search and collect matching records
     declare -a matching_records
     declare -a matching_lines
     match_count=0
@@ -381,30 +338,25 @@ function delete_table() {
         fi
     done < "$DB_PATH/$table.data"
     
-    # Check if any records found
     if [ $match_count -eq 0 ]; then
         echo "Error: No records found with $selected_col = '$search_value'"
         return
     fi
     
-    # Display matching records
     echo ""
     echo "Found $match_count matching record(s):"
     echo ""
     
-    # Print header
     for ((i=0; i<col_count; i++)); do
         printf "%-15s " "${col_names[$i]}"
     done
     echo ""
     
-    # Print separator
     for ((i=0; i<col_count; i++)); do
         printf "%-15s " "---------------"
     done
     echo ""
     
-    # Print matching records
     for ((r=0; r<match_count; r++)); do
         IFS=: read -ra fields <<< "${matching_records[$r]}"
         for ((i=0; i<col_count; i++)); do
@@ -415,7 +367,6 @@ function delete_table() {
     
     echo ""
     
-    # Confirm deletion
     if [ $match_count -eq 1 ]; then
         read -p "Delete this record? (y/n): " confirm
     else
@@ -427,14 +378,12 @@ function delete_table() {
         return
     fi
     
-    # Delete matching records
     temp_file="$DB_PATH/$table.data.tmp"
     > "$temp_file"
     
     while IFS= read -r line; do
         IFS=: read -ra fields <<< "$line"
         if [ "${fields[$col_idx]}" != "$search_value" ]; then
-            # Keep this record
             echo "$line" >> "$temp_file"
         fi
     done < "$DB_PATH/$table.data"
@@ -451,23 +400,19 @@ function delete_table() {
 function update_table() {
     read -p "Enter table name: " table
 
-    # Validate table name
     if ! validate_table_name "$table"; then
         return
     fi
 
-    # Check if table exists
     if ! table_exists "$table"; then
         return
     fi
 
-    # Check if data file exists
     if [ ! -f "$DB_PATH/$table.data" ]; then
         echo "Table has no records"
         return
     fi
 
-    # Read metadata
     declare -a col_names
     declare -a col_types
     declare -a col_pk
@@ -484,14 +429,12 @@ function update_table() {
         ((col_count++))
     done < "$DB_PATH/$table.meta"
 
-    # Count existing records
     record_count=$(wc -l < "$DB_PATH/$table.data")
     if [ $record_count -eq 0 ]; then
         echo "Table has no records"
         return
     fi
 
-    # Display available columns
     echo ""
     echo "Available columns:"
     for ((i=0; i<col_count; i++)); do
@@ -499,30 +442,24 @@ function update_table() {
     done
     echo ""
 
-    # Ask user to select column for search condition
     read -p "Select column number to search by: " col_choice
 
-    # Validate column choice
     if ! [[ "$col_choice" =~ ^[0-9]+$ ]] || [ $col_choice -lt 1 ] || [ $col_choice -gt $col_count ]; then
         echo "Error: Invalid column number"
         return
     fi
 
-    # Adjust to zero-based index
     search_col_idx=$((col_choice - 1))
     search_col_name="${col_names[$search_col_idx]}"
     search_col_type="${col_types[$search_col_idx]}"
 
-    # Ask for value to match
     read -p "Enter $search_col_name value to search: " search_value
 
-    # Validate datatype
     if ! validate_datatype "$search_value" "$search_col_type"; then
         echo "Error: $search_col_name must be an integer"
         return
     fi
 
-    # Search and collect matching records
     declare -a matching_records
     declare -a matching_indices
     match_count=0
@@ -538,32 +475,27 @@ function update_table() {
         ((line_num++))
     done < "$DB_PATH/$table.data"
 
-    # Check if any records found
     if [ $match_count -eq 0 ]; then
         echo "Error: No records found with $search_col_name = '$search_value'"
         return
     fi
 
-    # Display matching records
     echo ""
     echo "Found $match_count matching record(s):"
     echo ""
 
-    # Print header with record numbers
     printf "%-5s " "#"
     for ((i=0; i<col_count; i++)); do
         printf "%-15s " "${col_names[$i]}"
     done
     echo ""
 
-    # Print separator
     printf "%-5s " "-----"
     for ((i=0; i<col_count; i++)); do
         printf "%-15s " "---------------"
     done
     echo ""
 
-    # Print matching records with numbers
     for ((r=0; r<match_count; r++)); do
         printf "%-5s " "$((r+1))"
         IFS=: read -ra fields <<< "${matching_records[$r]}"
@@ -575,7 +507,6 @@ function update_table() {
 
     echo ""
 
-    # If multiple matches, ask which one to update
     if [ $match_count -gt 1 ]; then
         read -p "Which record to update? (1-$match_count or 'all'): " record_choice
 
@@ -584,7 +515,6 @@ function update_table() {
             selected_records=("${matching_records[@]}")
             selected_indices=("${matching_indices[@]}")
         else
-            # Validate record choice
             if ! [[ "$record_choice" =~ ^[0-9]+$ ]] || [ $record_choice -lt 1 ] || [ $record_choice -gt $match_count ]; then
                 echo "Error: Invalid record number"
                 return
@@ -599,7 +529,6 @@ function update_table() {
         selected_indices=("${matching_indices[0]}")
     fi
 
-    # Display columns to update
     echo ""
     echo "Select columns to update:"
     declare -a cols_to_update
@@ -607,7 +536,6 @@ function update_table() {
     update_col_count=0
 
     for ((i=0; i<col_count; i++)); do
-        # Don't allow updating primary key
         if [ $i -eq $pk_col ]; then
             echo "  ${col_names[$i]}: (Primary key - cannot update)"
             continue
@@ -620,13 +548,11 @@ function update_table() {
         fi
     done
 
-    # Check if at least one column is selected for update
     if [ $update_col_count -eq 0 ]; then
         echo "Error: No columns selected for update"
         return
     fi
 
-    # Get new values for selected columns
     echo ""
     echo "Enter new values:"
     declare -a new_values
@@ -634,13 +560,11 @@ function update_table() {
         col_idx=${cols_to_update[$i]}
         read -p "Enter new ${col_names[$col_idx]} (${col_types[$col_idx]}): " value
 
-        # Validate datatype
         if ! validate_datatype "$value" "${col_types[$col_idx]}"; then
             echo "Error: ${col_names[$col_idx]} must be an integer"
             return
         fi
 
-        # Check for empty value
         if [ -z "$value" ]; then
             echo "Error: ${col_names[$col_idx]} cannot be empty"
             return
@@ -649,7 +573,6 @@ function update_table() {
         new_values[$i]=$value
     done
 
-    # Update records
     temp_file="$DB_PATH/$table.data.tmp"
     > "$temp_file"
 
@@ -657,7 +580,6 @@ function update_table() {
     updated_count=0
 
     while IFS= read -r line; do
-        # Check if this line should be updated
         should_update=0
         for idx in "${selected_indices[@]}"; do
             if [ $line_num -eq $idx ]; then
@@ -667,21 +589,17 @@ function update_table() {
         done
 
         if [ $should_update -eq 1 ]; then
-            # Update this record
             IFS=: read -ra fields <<< "$line"
 
-            # Apply updates to selected columns
             for ((i=0; i<update_col_count; i++)); do
                 col_idx=${cols_to_update[$i]}
                 fields[$col_idx]="${new_values[$i]}"
             done
 
-            # Write updated record
             record=$(IFS=:; echo "${fields[*]}")
             echo "$record" >> "$temp_file"
             ((updated_count++))
         else
-            # Keep original record
             echo "$line" >> "$temp_file"
         fi
 

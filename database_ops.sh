@@ -5,8 +5,7 @@ function create_database() {
         return
     fi
     
-    # Check if database exists
-    if  database_exists "$db"; then
+    if [ -d "$DB_ROOT/$db" ]; then
         echo "Database already exists"
     else
         mkdir -p "$DB_ROOT/$db"
@@ -33,21 +32,12 @@ function list_databases() {
 function drop_database() {
     read -p "Enter database name: " db
     
-    # Validate database name
     if ! validate_database_name "$db"; then
         return
     fi
     
-    # Check if database exists
     if ! database_exists "$db"; then
         return
-    fi
-    
-    # Count tables in database
-    local table_count=$(ls "$DB_ROOT/$db"/*.data 2>/dev/null | wc -l)
-    
-    if [ $table_count -gt 0 ]; then
-        echo "Warning: Database contains $table_count table(s)"
     fi
     
     read -p "Are you sure you want to drop database '$db'? (y/n): " confirm
@@ -62,7 +52,6 @@ function drop_database() {
 
 function connect_database() {
 read -p "Enter database name: " db
-# Validate database name
 if ! validate_database_name "$db"; then
     return
 fi
